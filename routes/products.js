@@ -2,7 +2,9 @@ var express = require("express");
 var router = express.Router();
 let slugify = require("slugify");
 let productModel = require("../schemas/products");
-let inventoryModel = require("../schemas/inventory");
+let inventoryModel = require("../schemas/inventories");
+let mongoose = require("mongoose");
+
 /* GET users listing. */
 router.get("/", async function (req, res, next) {
   let queries = req.query;
@@ -72,8 +74,9 @@ router.get("/:id", async function (req, res, next) {
 //   }
 // });
 //CREATE UPDATE DELETE
-
 router.post("/", async function (req, res) {
+  let session = await mongoose.startSession();
+  let transaction = session.startTransaction();
   try {
     let newProduct = new productModel({
       title: req.body.title,
@@ -88,26 +91,23 @@ router.post("/", async function (req, res) {
       category: req.body.category,
       images: req.body.images,
     });
-    const savedProduct = await newProduct.save();
-
-    // Tạo inventory tương ứng
+    await newProduct.save({ session });
+    console.log(newProduct);
     let newInventory = new inventoryModel({
-      product: savedProduct._id,
-      stock: req.body.stock || 0,
-      reserved: 0,
-      soldCount: 0,
+      product: newProduct._id,
+      stock: -1,
     });
-    await newInventory.save();
-
-    res.send({
-      product: savedProduct,
-      inventory: newInventory,
-    });
+    await newInventory.save({ session });
+    await newInventory.populate("product");
+    session.commitTransaction();
+    session.endSession();
+    res.send(newInventory);
   } catch (error) {
-    res.status(400).send({ message: error.message });
+    session.abortTransaction();
+    session.endSession();
+    res.status(404).send(error.message);
   }
 });
-
 router.put("/:id", async function (req, res) {
   try {
     let id = req.params.id;
