@@ -95,7 +95,7 @@ router.post("/", async function (req, res) {
       product: savedProduct._id,
       stock: req.body.stock || 0,
       reserved: 0,
-      souldCount: 0,
+      soldCount: 0,
     });
     await newInventory.save();
 

@@ -15,9 +15,6 @@ function getSoldCount(inventory) {
   if (typeof inventory.soldCount === "number") {
     return inventory.soldCount;
   }
-  if (typeof inventory.souldCount === "number") {
-    return inventory.souldCount;
-  }
   return 0;
 }
 
@@ -84,11 +81,15 @@ router.get("/:id", async function (req, res) {
   }
 });
 
-// Add stock
-router.post("/:productId/add-stock", async function (req, res) {
+// Add stock: { product, quantity }
+router.post("/add-stock", async function (req, res) {
   try {
-    let productId = req.params.productId;
+    let productId = req.body.product;
     let quantity = normalizeQuantity(req.body.quantity);
+
+    if (!productId) {
+      return res.status(400).send({ message: "Thieu product" });
+    }
 
     if (!quantity) {
       return res.status(400).send({ message: "Quantity phai la so > 0" });
@@ -114,7 +115,6 @@ router.post("/:productId/add-stock", async function (req, res) {
         stock: quantity,
         reserved: 0,
         soldCount: 0,
-        souldCount: 0,
       });
       await inventory.save();
     }
@@ -125,11 +125,15 @@ router.post("/:productId/add-stock", async function (req, res) {
   }
 });
 
-// remove stock
-router.post("/:productId/remove-stock", async function (req, res) {
+// remove stock: { product, quantity } - giam stock, tang reserved
+router.post("/remove-stock", async function (req, res) {
   try {
-    let productId = req.params.productId;
+    let productId = req.body.product;
     let quantity = normalizeQuantity(req.body.quantity);
+
+    if (!productId) {
+      return res.status(400).send({ message: "Thieu product" });
+    }
 
     if (!quantity) {
       return res.status(400).send({ message: "Quantity phai la so > 0" });
@@ -153,6 +157,7 @@ router.post("/:productId/remove-stock", async function (req, res) {
     }
 
     inventory.stock -= quantity;
+    inventory.reserved += quantity;
     await inventory.save();
 
     res.send(buildInventoryResponse(inventory, product));
@@ -161,7 +166,7 @@ router.post("/:productId/remove-stock", async function (req, res) {
   }
 });
 
-// reservation: giam stock, tang reserved
+// reservation: { product, quantity } - giam reserved, tang soldCount
 router.post("/reservation", async function (req, res) {
   try {
     let { product, quantity } = req.body;
@@ -185,12 +190,12 @@ router.post("/reservation", async function (req, res) {
       return res.status(404).send({ message: "Gio hang khong ton tai" });
     }
 
-    if (inventory.stock < quantity) {
-      return res.status(400).send({ message: "So luong trong kho khong du" });
+    if (inventory.reserved < quantity) {
+      return res.status(400).send({ message: "Reserved khong du" });
     }
 
-    inventory.stock -= quantity;
-    inventory.reserved += quantity;
+    inventory.reserved -= quantity;
+    inventory.soldCount = getSoldCount(inventory) + quantity;
     await inventory.save();
 
     res.send(buildInventoryResponse(inventory, existingProduct));
@@ -229,7 +234,6 @@ router.post("/sold", async function (req, res) {
 
     inventory.reserved -= quantity;
     inventory.soldCount = getSoldCount(inventory) + quantity;
-    inventory.souldCount = inventory.soldCount;
     await inventory.save();
 
     res.send(buildInventoryResponse(inventory, existingProduct));

@@ -9,14 +9,17 @@ let inventorySchema = mongoose.Schema(
     },
     stock: {
       type: Number,
+      min: 0,
       default: 0,
     },
     reserved: {
       type: Number,
+      min: 0,
       default: 0,
     },
     soldCount: {
       type: Number,
+      min: 0,
       default: 0,
     },
   },
