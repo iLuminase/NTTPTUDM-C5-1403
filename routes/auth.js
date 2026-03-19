@@ -8,8 +8,9 @@ let {
 } = require("../utils/validator");
 let bcrypt = require("bcrypt");
 let jwt = require("jsonwebtoken");
-const { check } = require("express-validator");
 const { checkLogin } = require("../utils/authHandler");
+let crypto = require("crypto");
+let { sendMail } = require("../utils/mailHandler");
 
 router.post(
   "/register",
@@ -98,6 +99,37 @@ router.post(
 
 router.get("/me", checkLogin, function (req, res, next) {
   res.send(req.user);
+});
+router.post("/forgotpassword", async function (req, res, next) {
+  let email = req.body.email;
+  let user = await userController.FindUserByEmail(email);
+  if (user) {
+    user.forgotPasswordToken = crypto.randomBytes(32).toString("hex");
+    user.forgotPasswordTokenExp = Date.now() + 10 * 60 * 1000;
+    await user.save();
+    let url =
+      "http://localhost:3000/api/v1/auth/resetpassword/" +
+      user.forgotPasswordToken;
+    sendMail(user.email, url);
+  }
+  res.send("check mail de cap nhat passs");
+});
+router.post("/resetpassword/:token", async function (req, res, next) {
+  let token = req.params.token;
+  let user = await userController.FindUserByToken(token);
+  if (!user) {
+    res.status(404).send("token loi");
+    return;
+  }
+  if (user.forgotPasswordTokenExp > Date.now()) {
+    user.password = req.body.password;
+    user.forgotPasswordToken = null;
+    user.forgotPasswordTokenExp = null;
+    await user.save();
+    res.send("cap nhat thanh cong");
+  } else {
+    res.status(404).send("ma het han");
+  }
 });
 
 module.exports = router;

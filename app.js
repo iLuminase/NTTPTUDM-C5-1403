@@ -27,7 +27,11 @@ app.use("/api/v1/products", require("./routes/products"));
 app.use("/api/v1/categories", require("./routes/categories"));
 app.use("/api/v1/roles", require("./routes/roles"));
 
-mongoose.connect("mongodb://localhost:32768/NNPTUD-C5");
+// Inventory route
+app.use("/api/v1/inventories", require("./routes/inventory"));
+
+// Db connection
+mongoose.connect("mongodb://localhost:27017/NNPTUD-C5");
 mongoose.connection.on("connected", function () {
   console.log("connected");
 });
